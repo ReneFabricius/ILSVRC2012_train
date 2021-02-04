@@ -235,7 +235,6 @@ def main_worker(gpu, ngpus_per_node, args):
             normalize,
         ])
 
-
     train_dataset_train_transf = datasets.ImageFolder(
         traindir,
         train_transform
@@ -248,15 +247,15 @@ def main_worker(gpu, ngpus_per_node, args):
         )
 
     if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset_train_transf)
     else:
         train_sampler = None
 
     # Split original train set into a new validation set and remaining train set
-    train_targets = train_dataset.targets
+    train_targets = train_dataset_train_transf.targets
     full_train_size = len(train_targets)
     test_portion = args.validation_size / full_train_size
-    train_idx, valid_idx = train_test_split(np.arange(len(targets)), test_size=test_portion, shuffle=True,
+    train_idx, valid_idx = train_test_split(np.arange(full_train_size), test_size=test_portion, shuffle=True,
                                             stratify=train_targets)
 
     train_subset = torch.utils.data.Subset(train_dataset_train_transf, train_idx)
@@ -290,7 +289,6 @@ def main_worker(gpu, ngpus_per_node, args):
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args)
 
-
         # if extra validation was requested, evaluate
         if args.validation_size > 0:
             val2(val2_loader, model, epoch, args)
@@ -310,7 +308,8 @@ def main_worker(gpu, ngpus_per_node, args):
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer' : optimizer.state_dict(),
-            }, is_best)
+            }, is_best, args)
+
 
 def val2(validation_loader, model, epoch, args):
 
@@ -348,6 +347,7 @@ def val2(validation_loader, model, epoch, args):
             val2_load = np.load(path.join(args.output_folder, "val2_target.npy"))
             assert(np.array_equal(val2_load, target_array))
 
+
 def train(train_loader, model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter('Time', ':6.3f')
     data_time = AverageMeter('Data', ':6.3f')
@@ -373,7 +373,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         if complete: 
             assert(target.is_cuda == False)
             assert(target.requires_grad == False)
-            target_py = target.numpy()
+            target_py = target.detach().clone().numpy()
             target_list.append(target_py)
 
         # measure data loading time
@@ -500,7 +500,7 @@ def validate(epoch, val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, args, filename='checkpoint.pth.tar'):
     filename = path.join(args.output_folder, filename)
     torch.save(state, filename)
     if is_best:
@@ -568,7 +568,8 @@ def accuracy(output, target, topk=(1,)):
 
         res = []
         for k in topk:
-            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            ##correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            correct_k = correct[:k].sum(dtype=float).expand(1)
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
