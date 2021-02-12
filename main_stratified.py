@@ -92,6 +92,9 @@ parser.add_argument('-V', '--validation-size', default=0, type=int,
 
 parser.add_argument('--output-folder', default='', type=str, metavar='output_folder',
                     help='path to a folder in which training outputs will be stored')
+parser.add_argument('--existing_val_split', defauld=None, type=str, metavar='validation_split',
+                    help='path to a folder with files val_idx.npy and train_idx.npy specifying '
+                         'training/validation split of training set')
 
 best_acc1 = 0
 
@@ -251,26 +254,36 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         train_sampler = None
 
-    # Split original train set into a new validation set and remaining train set
-    train_targets = train_dataset_train_transf.targets
-    full_train_size = len(train_targets)
-    test_portion = args.validation_size / full_train_size
-    train_idx, valid_idx = train_test_split(np.arange(full_train_size), test_size=test_portion, shuffle=True,
-                                            stratify=train_targets)
+    if args.validation_size > 0:
+        # Split original train set into a new validation set and remaining train set
+        if args.existing_val_split is None:
+            train_targets = train_dataset_train_transf.targets
+            full_train_size = len(train_targets)
+            test_portion = args.validation_size / full_train_size
+            train_idx, valid_idx = train_test_split(np.arange(full_train_size), test_size=test_portion, shuffle=True,
+                                                    stratify=train_targets)
+        else:
+            train_idx = np.load(os.path.join(args.existing_val_split, 'train_idx.npy'))
+            valid_idx = np.load(os.path.join(args.existing_val_split, 'val_idx.npy'))
 
-    train_subset = torch.utils.data.Subset(train_dataset_train_transf, train_idx)
-    valid_subset = torch.utils.data.Subset(train_dataset_valid_transf, valid_idx)
+        train_subset = torch.utils.data.Subset(train_dataset_train_transf, train_idx)
+        valid_subset = torch.utils.data.Subset(train_dataset_valid_transf, valid_idx)
 
-    np.save(path.join(args.output_folder, 'train_idx.npy'), np.array(train_idx))
-    np.save(path.join(args.output_folder, 'val_idx.npy'), np.array(valid_idx))
-    
-    val2_loader = torch.utils.data.DataLoader(
-        valid_subset, batch_size = args.batch_size, shuffle = False,
-        num_workers = args.workers, pin_memory = True, sampler = None)
+        np.save(path.join(args.output_folder, 'train_idx.npy'), np.array(train_idx))
+        np.save(path.join(args.output_folder, 'val_idx.npy'), np.array(valid_idx))
 
-    train_loader = torch.utils.data.DataLoader(
-        train_subset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+        val2_loader = torch.utils.data.DataLoader(
+            valid_subset, batch_size = args.batch_size, shuffle = False,
+            num_workers = args.workers, pin_memory = True, sampler = None)
+
+        train_loader = torch.utils.data.DataLoader(
+            train_subset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+            num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+
+    else:
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset_train_transf, batch_size=args.batch_size, shuffle=(train_sampler is None),
+            num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, valid_transform),
