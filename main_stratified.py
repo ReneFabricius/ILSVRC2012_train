@@ -25,6 +25,7 @@ from os import path
 
 # Rene
 from sklearn.model_selection import train_test_split
+import pretrainedmodels as ptm
 
 # For half precision
 scaler = torch.cuda.amp.GradScaler()
@@ -32,6 +33,9 @@ scaler = torch.cuda.amp.GradScaler()
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
+ptm_names = ptm.model_names
+
+model_names += ptm_names
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -92,10 +96,11 @@ parser.add_argument('-V', '--validation-size', default=0, type=int,
 
 parser.add_argument('--output-folder', default='', type=str, metavar='output_folder',
                     help='path to a folder in which training outputs will be stored')
-parser.add_argument('--existing_val_split', defauld=None, type=str, metavar='validation_split',
+parser.add_argument('--existing-val-split', default=None, type=str, metavar='existing_val_split',
                     help='path to a folder with files val_idx.npy and train_idx.npy specifying '
                          'training/validation split of training set')
-
+parser.add_argument('--from-ptm', action='store_true', dest='from_ptm',
+                    help='whether to load the model from library pretrainedmodels')
 best_acc1 = 0
 
 
@@ -153,10 +158,16 @@ def main_worker(gpu, ngpus_per_node, args):
     # create model
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
-        model = models.__dict__[args.arch](pretrained=True)
+        if not args.from_ptm:
+            model = models.__dict__[args.arch](pretrained=True)
+        else:
+            model = ptm.__dict__[args.arch](num_classes=1000, pretrained='imagenet')
     else:
         print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch]()
+        if not args.from_ptm:
+            model = models.__dict__[args.arch]()
+        else:
+            model = ptm.__dict__[args.arch](num_classes=1000, pretrained=False)
 
     if args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
@@ -273,8 +284,8 @@ def main_worker(gpu, ngpus_per_node, args):
         np.save(path.join(args.output_folder, 'val_idx.npy'), np.array(valid_idx))
 
         val2_loader = torch.utils.data.DataLoader(
-            valid_subset, batch_size = args.batch_size, shuffle = False,
-            num_workers = args.workers, pin_memory = True, sampler = None)
+            valid_subset, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True, sampler=None)
 
         train_loader = torch.utils.data.DataLoader(
             train_subset, batch_size=args.batch_size, shuffle=(train_sampler is None),
@@ -438,7 +449,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
     if len(prediction_list) > 0:
         prediction_array = np.concatenate(prediction_list)
-        target_array = np. concatenate(target_list)
+        target_array = np.concatenate(target_list)
         np.save(path.join(args.output_folder, "train_output_{}.npy".format(epoch)), prediction_array)
         np.save(path.join(args.output_folder, "train_target_{}.npy".format(epoch)), target_array)
 
@@ -563,8 +574,12 @@ class ProgressMeter(object):
 
 
 def adjust_learning_rate(optimizer, epoch, args):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 30))
+    if args.arch in ["xception", "nasnetamobile"]:
+        lr = args.lr * (0.94 ** (epoch // 2))
+    else:
+        """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+        lr = args.lr * (0.1 ** (epoch // 30))
+
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 

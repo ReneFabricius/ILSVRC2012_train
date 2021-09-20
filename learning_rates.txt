@@ -6,3 +6,23 @@ DenseNet:
 	we train models for 90 epochs with a batch size of 256.
 	The learning rate is set to 0.1 initially, and is lowered by
 	10 times at epoch 30 and 60. 
+	
+Xception:
+	On ImageNet:
+	– Optimizer: SGD
+	– Momentum: 0.9
+	– Initial learning rate: 0.045
+	– Learning rate decay: decay of rate 0.94 every 2
+	epochs
+	
+NASNetAMobile
+	We used a learning rate of 0.045,
+	decayed every two epoch using an exponential rate of 0.94.
+	
+ResNet
+	The learning rate
+	starts from 0.1 and is divided by 10 when the error plateaus,
+	and the models are trained for up to 60 × 104
+	iterations. We
+	use a weight decay of 0.0001 and a momentum of 0.9. We
+	do not use dropout [14], following the practice in [16].
