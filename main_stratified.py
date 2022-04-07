@@ -301,7 +301,7 @@ def main_worker(gpu, ngpus_per_node, args):
         num_workers=args.workers, pin_memory=True)
 
     if args.evaluate:
-        validate(None, val_loader, model, criterion, args)
+        validate(-1, val_loader, model, criterion, args)
         return
 
     for epoch in range(args.start_epoch, args.epochs):
@@ -332,10 +332,14 @@ def main_worker(gpu, ngpus_per_node, args):
                 'best_acc1': best_acc1,
                 'optimizer' : optimizer.state_dict(),
             }, is_best, args)
+            
+    validate(None, val_loader, model, criterion, args)
+    if args.validation_size > 0:
+        val2(val2_loader, model, None, args)
 
 
 def val2(validation_loader, model, epoch, args):
-
+    
     prediction_list = []
     target_list = []
 
@@ -362,12 +366,15 @@ def val2(validation_loader, model, epoch, args):
 
         prediction_array = np.concatenate(prediction_list)
         target_array = np.concatenate(target_list)
-        np.save(path.join(args.output_folder, "val2_output_{}.npy".format(epoch)), prediction_array)
-
-        if not path.exists(path.join(args.output_folder, "val2_target.npy")):
-            np.save(path.join(args.output_folder, "val2_target.npy"), target_array)
+        if epoch is not None:
+            np.save(path.join(args.output_folder, "val_output_{}.npy".format(epoch)), prediction_array)
         else:
-            val2_load = np.load(path.join(args.output_folder, "val2_target.npy"))
+            np.save(path.join(args.output_folder, "val_outputs.npy"), prediction_array)
+
+        if not path.exists(path.join(args.output_folder, "val_labels.npy")):
+            np.save(path.join(args.output_folder, "val_labels.npy"), target_array)
+        else:
+            val2_load = np.load(path.join(args.output_folder, "val_labels.npy"))
             assert(np.array_equal(val2_load, target_array))
 
 
@@ -504,8 +511,12 @@ def validate(epoch, val_loader, model, criterion, args):
 
         prediction_array = np.concatenate(prediction_list)
 
-        np.save(path.join(args.output_folder, "val_output_{epoch}.npy".format(epoch = epoch if epoch is not None else ''))
-                , prediction_array)
+        if epoch is not None:
+            np.save(path.join(args.output_folder, "test_output_{epoch}.npy".format(epoch)),
+                    prediction_array)
+        else:
+            np.save(path.join(args.output_folder, "test_outputs.npy"), prediction_array)
+
         if epoch is not None:
             with open(path.join(args.output_folder, "valid_summary.txt"), "a") as myfile:
                 myfile.write("{losses.avg:.4e},{top1.avg:.3f},{top5.avg:.3f}\n".
@@ -514,10 +525,10 @@ def validate(epoch, val_loader, model, criterion, args):
 
         target_array = np.concatenate(target_list)
 
-        if not path.exists(path.join(args.output_folder, "val_target.npy")):
-            np.save(path.join(args.output_folder, "val_target.npy"), target_array)
+        if not path.exists(path.join(args.output_folder, "test_labels.npy")):
+            np.save(path.join(args.output_folder, "test_labels.npy"), target_array)
         else:
-            prev_array = np.load(path.join(args.output_folder, "val_target.npy"))
+            prev_array = np.load(path.join(args.output_folder, "test_labels.npy"))
             assert np.array_equal(target_array, prev_array)
 
     return top1.avg
