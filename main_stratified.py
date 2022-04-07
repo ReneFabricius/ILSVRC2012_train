@@ -26,6 +26,7 @@ from os import path
 # Rene
 from sklearn.model_selection import train_test_split
 import pretrainedmodels as ptm
+from weensembes.utils import train_test_split_equal_repr
 
 # For half precision
 scaler = torch.cuda.amp.GradScaler()
@@ -91,7 +92,7 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
 
 parser.add_argument('-V', '--validation-size', default=0, type=int,
                     metavar='validation_size',
-                    help='size of subset of train data set aside for extra validation')
+                    help='Number of samples per class of subset of train data set aside for extra validation')
 
 
 parser.add_argument('--output-folder', default='', type=str, metavar='output_folder',
@@ -270,9 +271,7 @@ def main_worker(gpu, ngpus_per_node, args):
         if args.existing_val_split is None:
             train_targets = train_dataset_train_transf.targets
             full_train_size = len(train_targets)
-            test_portion = args.validation_size / full_train_size
-            train_idx, valid_idx = train_test_split(np.arange(full_train_size), test_size=test_portion, shuffle=True,
-                                                    stratify=train_targets)
+            train_idx, valid_idx = train_test_split_equal_repr(args.validation_size, labels=train_targets, shuffle=True)
         else:
             train_idx = np.load(os.path.join(args.existing_val_split, 'train_idx.npy'))
             valid_idx = np.load(os.path.join(args.existing_val_split, 'val_idx.npy'))
@@ -280,8 +279,8 @@ def main_worker(gpu, ngpus_per_node, args):
         train_subset = torch.utils.data.Subset(train_dataset_train_transf, train_idx)
         valid_subset = torch.utils.data.Subset(train_dataset_valid_transf, valid_idx)
 
-        np.save(path.join(args.output_folder, 'train_idx.npy'), np.array(train_idx))
-        np.save(path.join(args.output_folder, 'val_idx.npy'), np.array(valid_idx))
+        np.save(path.join(args.output_folder, 'train_idx.npy'), np.array(train_idx.cpu()))
+        np.save(path.join(args.output_folder, 'val_idx.npy'), np.array(valid_idx.cpu))
 
         val2_loader = torch.utils.data.DataLoader(
             valid_subset, batch_size=args.batch_size, shuffle=False,
