@@ -271,7 +271,7 @@ def main_worker(gpu, ngpus_per_node, args):
         if args.existing_val_split is None:
             train_targets = train_dataset_train_transf.targets
             full_train_size = len(train_targets)
-            train_idx, valid_idx = train_test_split_equal_repr(args.validation_size, labels=train_targets, shuffle=True)
+            train_idx, valid_idx = train_test_split_equal_repr(args.validation_size, labels=torch.tensor(train_targets), shuffle=True)
         else:
             train_idx = np.load(os.path.join(args.existing_val_split, 'train_idx.npy'))
             valid_idx = np.load(os.path.join(args.existing_val_split, 'val_idx.npy'))
