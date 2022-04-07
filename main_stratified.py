@@ -26,7 +26,7 @@ from os import path
 # Rene
 from sklearn.model_selection import train_test_split
 import pretrainedmodels as ptm
-from weensembes.utils import train_test_split_equal_repr
+from weensembles.utils import train_test_split_equal_repr
 
 # For half precision
 scaler = torch.cuda.amp.GradScaler()
