@@ -512,7 +512,7 @@ def validate(epoch, val_loader, model, criterion, args):
         prediction_array = np.concatenate(prediction_list)
 
         if epoch is not None:
-            np.save(path.join(args.output_folder, "test_output_{epoch}.npy".format(epoch)),
+            np.save(path.join(args.output_folder, "test_output_{epoch}.npy".format(epoch=epoch)),
                     prediction_array)
         else:
             np.save(path.join(args.output_folder, "test_outputs.npy"), prediction_array)
