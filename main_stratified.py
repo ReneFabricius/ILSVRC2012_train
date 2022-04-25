@@ -126,6 +126,8 @@ def main():
         args.world_size = int(os.environ["WORLD_SIZE"])
 
     args.distributed = args.world_size > 1 or args.multiprocessing_distributed
+    with open(os.path.join(args.output_folder, "valid_summary.txt"), mode="w") as f:
+        pass
 
     ngpus_per_node = torch.cuda.device_count()
     if args.multiprocessing_distributed:
