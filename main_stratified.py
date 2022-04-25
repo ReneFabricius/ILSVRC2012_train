@@ -109,7 +109,7 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(args.output_folder):
-        os.mkdir(args.outputs_folder)
+        os.mkdir(args.output_folder)
 
     if args.seed is not None:
         random.seed(args.seed)
