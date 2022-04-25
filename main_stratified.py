@@ -108,6 +108,9 @@ best_acc1 = 0
 def main():
     args = parser.parse_args()
 
+    if not os.path.exists(args.output_folder):
+        os.mkdir(args.outputs_folder)
+
     if args.seed is not None:
         random.seed(args.seed)
         torch.manual_seed(args.seed)
@@ -126,8 +129,6 @@ def main():
         args.world_size = int(os.environ["WORLD_SIZE"])
 
     args.distributed = args.world_size > 1 or args.multiprocessing_distributed
-    with open(os.path.join(args.output_folder, "valid_summary.txt"), mode="w") as f:
-        pass
 
     ngpus_per_node = torch.cuda.device_count()
     if args.multiprocessing_distributed:
