@@ -269,7 +269,8 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         train_sampler = None
 
-    if args.validation_size > 0:
+    extra_validation = args.existing_val_split is not None or args.validation_size > 0
+    if extra_validation: 
         # Split original train set into a new validation set and remaining train set
         if args.existing_val_split is None:
             train_targets = train_dataset_train_transf.targets
@@ -316,7 +317,7 @@ def main_worker(gpu, ngpus_per_node, args):
         train(train_loader, model, criterion, optimizer, epoch, args)
 
         # if extra validation was requested, evaluate
-        if args.validation_size > 0:
+        if extra_validation:
             val2(val2_loader, model, epoch, args)
 
         # evaluate on validation set
@@ -337,7 +338,7 @@ def main_worker(gpu, ngpus_per_node, args):
             }, is_best, args)
             
     validate(None, val_loader, model, criterion, args)
-    if args.validation_size > 0:
+    if extra_validation:
         val2(val2_loader, model, None, args)
 
 
