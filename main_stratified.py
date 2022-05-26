@@ -283,8 +283,9 @@ def main_worker(gpu, ngpus_per_node, args):
         train_subset = torch.utils.data.Subset(train_dataset_train_transf, train_idx)
         valid_subset = torch.utils.data.Subset(train_dataset_valid_transf, valid_idx)
 
-        np.save(path.join(args.output_folder, 'train_idx.npy'), np.array(train_idx.cpu()))
-        np.save(path.join(args.output_folder, 'val_idx.npy'), np.array(valid_idx.cpu()))
+        if args.existing_val_split is None:
+            np.save(path.join(args.output_folder, 'train_idx.npy'), np.array(train_idx.cpu()))
+            np.save(path.join(args.output_folder, 'val_idx.npy'), np.array(valid_idx.cpu()))
 
         val2_loader = torch.utils.data.DataLoader(
             valid_subset, batch_size=args.batch_size, shuffle=False,
